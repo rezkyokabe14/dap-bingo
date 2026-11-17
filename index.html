@@ -243,6 +243,7 @@ function render(popIdx){
   $('sFill').textContent=filled+'/25';$('sPeople').textContent=people;$('sBingo').textContent=lines.length;
   $('bar').style.width=(filled/25*100)+'%';
   $('who').textContent=state.me;
+  queueSync();
   return lines.length;
 }
 
@@ -303,6 +304,28 @@ function confetti(n){
     ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.04;p.r+=p.vr;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore()});
     if(t<200)requestAnimationFrame(step);else ctx.clearRect(0,0,cv.width,cv.height)})();
 }
+
+/* ---- kirim skor ke papan skor fasilitator ---- */
+const API='/api/score';
+function pid(){
+  try{let id=localStorage.getItem('dap-bingo-pid');
+    if(!id){id=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));localStorage.setItem('dap-bingo-pid',id)}
+    return id}catch(e){return window.__pid||(window.__pid=Date.now().toString(36)+Math.random().toString(36).slice(2))}
+}
+let syncT=null,lastSent='';
+function syncNow(force){
+  if(!state.me)return;
+  const lines=bingoLines().length, filled=state.cells.filter(Boolean).length;
+  const people=new Set(state.cells.filter(Boolean).map(norm)).size;
+  if(state.syncBingo!==lines||!state.reachedAt){state.syncBingo=lines;state.reachedAt=Date.now();save()}
+  const body=JSON.stringify({id:pid(),name:state.me,bingo:lines,filled,people,reachedAt:state.reachedAt});
+  if(!force&&body===lastSent)return;
+  fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true})
+    .then(r=>{if(r.ok){lastSent=body;$('footNote').textContent='Tersambung ke papan skor'}})
+    .catch(()=>{});
+}
+function queueSync(){clearTimeout(syncT);syncT=setTimeout(syncNow,500)}
+setInterval(()=>syncNow(false),15000);
 
 load();
 if(state.me)showGame();

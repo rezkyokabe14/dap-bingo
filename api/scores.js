@@ -22,6 +22,9 @@ const configured = () => Boolean(URL_ && TOKEN);
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (!configured()) return res.status(503).json({ error: 'storage-not-configured' });
 
   const q = String((req.query && req.query.d) || '');
